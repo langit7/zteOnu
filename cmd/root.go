@@ -21,6 +21,7 @@ var (
 	telnetPort    int
 	iface         string
 	mac           string
+	newMethod     bool
 
 	rootCmd = &cobra.Command{
 		Use: "zteOnu",
@@ -36,10 +37,11 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&user, "user", "u", "telecomadmin", "factory mode auth username")
 	rootCmd.PersistentFlags().StringVarP(&passwd, "pass", "p", "nE7jA%5m", "factory mode auth password")
 	rootCmd.PersistentFlags().StringVarP(&ip, "ip", "i", "192.168.1.1", "ONU ip address")
-	rootCmd.PersistentFlags().IntVar(&port, "port", 8080, "ONU http port")
+	rootCmd.PersistentFlags().IntVar(&port, "port", 80, "ONU http port")
 	rootCmd.PersistentFlags().BoolVar(&telnet, "telnet", false, "permanent telnet (user: root, pass: Zte521) applied by restarting the telnetd service in place, without rebooting; only applied after a temp telnet login is verified")
 	rootCmd.PersistentFlags().BoolVar(&telnetRestart, "telnet-restart", false, "permanent telnet (user: root, pass: Zte521) applied by rebooting the device")
 	rootCmd.PersistentFlags().IntVar(&telnetPort, "tp", 23, "ONU telnet port")
+	rootCmd.PersistentFlags().BoolVar(&newMethod, "new", false, "use the newer time-qualified version61 factory method")
 	rootCmd.PersistentFlags().StringVar(&iface, "iface", "", "network interface whose MAC to use (default: auto-detected from the route to the ONU)")
 	rootCmd.PersistentFlags().StringVarP(&mac, "mac", "m", "", "custom client MAC address for the SendInfo payload (e.g. 00:07:29:55:35:57); overrides --iface and auto-detection")
 }
@@ -59,6 +61,7 @@ func run() error {
 		TelnetPort: telnetPort,
 		Iface:      iface,
 		Mac:        mac,
+		NewMethod:  newMethod,
 	})
 	if err != nil {
 		return err

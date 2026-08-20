@@ -21,6 +21,9 @@ go build -o zteonu .
 # Use a custom client MAC for the SendInfo payload (overrides everything)
 ./zteonu -i 192.168.1.1 -m 00:07:29:55:35:57
 
+# Use the newer time-qualified version61 method
+./zteonu -i 192.168.1.1 --new -m 00:07:29:55:35:57
+
 # Enable permanent telnet (user: root, pass: Zte521) by restarting telnetd in place, without rebooting
 ./zteonu -i 192.168.1.1 --telnet
 
@@ -38,6 +41,8 @@ the verification succeeds, the permanent telnet settings are written and applied
 exits. The in-place restart goes through the device's program manager (`sendcmd -pc kill <pid>`, which the `pc`
 supervisor answers by respawning telnetd) and is verified with a fresh `root`/`Zte521` login. `--telnet-restart`
 writes the same permanent settings but applies them by rebooting the device; the two flags are mutually exclusive.
+The default flow is unchanged. Use `--new` for firmware that requires the time-qualified `version61` authentication and
+factory-mode requests; it still uses the MAC-derived `SendInfo` payload, so provide `--mac` or a suitable interface MAC.
 
 ## Flags
 
@@ -50,6 +55,7 @@ writes the same permanent settings but applies them by rebooting the device; the
 | `--telnet`         |       | `false`        | permanent telnet (user: `root`, pass: `Zte521`) applied by restarting the `telnetd` service in place, without rebooting; only applied after a temp telnet login is verified |
 | `--telnet-restart` |       | `false`        | permanent telnet (user: `root`, pass: `Zte521`) applied by rebooting the device; mutually exclusive with `--telnet`                                                         |
 | `--tp`             |       | `23`           | ONU telnet port                                                                                                                                                             |
+| `--new`            |       | `false`        | use the newer time-qualified `version61` factory method; it still requires a MAC accepted by the ONU                                                                         |
 | `--iface`          |       | `""`           | network interface whose MAC to use (default: auto-detected from the route to the ONU)                                                                                       |
 | `--mac`            | `-m`  | `""`           | custom client MAC for the `SendInfo` payload (e.g. `00:07:29:55:35:57`); overrides `--iface` and auto-detection                                                             |
 

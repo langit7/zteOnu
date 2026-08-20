@@ -1,9 +1,11 @@
 package factory
 
 import (
+	crand "crypto/rand"
 	"errors"
 	"fmt"
 	"io"
+	"math/big"
 	"net/url"
 	"strconv"
 	"strings"
@@ -68,7 +70,10 @@ func (f *Factory) sendSq() (uint8, error) {
 }
 
 func (f *Factory) checkLoginAuth() error {
-	command := fmt.Sprintf("CheckLoginAuth.gch?&version61&user=%s&pass=%s", f.user, f.passwd)
+	command, err := f.loginAuthCommand()
+	if err != nil {
+		return err
+	}
 
 	payload, err := crypto.ECBEncrypt(
 		[]byte(command), f.key)
@@ -93,6 +98,22 @@ func (f *Factory) checkLoginAuth() error {
 	default:
 		return errors.New(resp.String())
 	}
+}
+
+func (f *Factory) loginAuthCommand() (string, error) {
+	command := fmt.Sprintf("CheckLoginAuth.gch?&version61&user=%s&pass=%s", f.user, f.passwd)
+	if f.newMode {
+		// Newer firmware binds the auth and FactoryMode requests to a
+		// monotonically increasing session time in the range 0..999.
+		var err error
+		f.authTime, err = randomSessionTime(0)
+		if err != nil {
+			return "", fmt.Errorf("generate factory session time: %w", err)
+		}
+		f.authTimeSet = true
+		command = fmt.Sprintf("CheckLoginAuth.gch?time%d&version61&user=%s&pass=%s", f.authTime, f.user, f.passwd)
+	}
+	return command, nil
 }
 
 // sendInfo sends the SendInfo payload for a single candidate MAC; the device
@@ -122,7 +143,10 @@ func (f *Factory) sendInfo(mac [6]byte) error {
 }
 
 func (f *Factory) factoryMode() (user string, pass string, err error) {
-	command := "FactoryMode.gch?mode=2&user=notused"
+	command, err := f.factoryModeCommand()
+	if err != nil {
+		return "", "", err
+	}
 
 	payload, err := crypto.ECBEncrypt([]byte(command), f.key)
 	if err != nil {
@@ -154,6 +178,39 @@ func (f *Factory) factoryMode() (user string, pass string, err error) {
 	}
 
 	return
+}
+
+func (f *Factory) factoryModeCommand() (string, error) {
+	command := "FactoryMode.gch?mode=2&user=notused"
+	if f.newMode {
+		if !f.authTimeSet {
+			return "", errors.New("new factory method has no authentication session time")
+		}
+		modeTime, timeErr := randomSessionTime(f.authTime)
+		if timeErr != nil {
+			return "", fmt.Errorf("generate factory mode session time: %w", timeErr)
+		}
+		command = fmt.Sprintf("FactoryMode.gch?time%d&mode=2&user=fuckyou", modeTime)
+	}
+	return command, nil
+}
+
+// randomSessionTime returns a value in [minimum, 1000). The device only
+// compares ordering, but keeping the value bounded matches the firmware's
+// parser and the established client handshake.
+func randomSessionTime(minimum int) (int, error) {
+	if minimum < 0 {
+		minimum = 0
+	}
+	if minimum >= 1000 {
+		return 999, nil
+	}
+	span := big.NewInt(int64(1000 - minimum))
+	n, err := crand.Int(crand.Reader, span)
+	if err != nil {
+		return 0, err
+	}
+	return minimum + int(n.Int64()), nil
 }
 
 func (f *Factory) handle(mac *[6]byte) (tlUser string, tlPass string, err error) {
