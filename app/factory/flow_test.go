@@ -40,7 +40,7 @@ func TestNewFactoryCommandsUseOrderedSessionTimes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(mode, "FactoryMode.gch?time") || !strings.HasSuffix(mode, "&mode=2&user=fuckyou") {
+	if !strings.HasPrefix(mode, "FactoryMode.gch?time") || !strings.HasSuffix(mode, "&mode=2&user=notused") {
 		t.Fatalf("unexpected new factory command: %q", mode)
 	}
 

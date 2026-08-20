@@ -190,7 +190,7 @@ func (f *Factory) factoryModeCommand() (string, error) {
 		if timeErr != nil {
 			return "", fmt.Errorf("generate factory mode session time: %w", timeErr)
 		}
-		command = fmt.Sprintf("FactoryMode.gch?time%d&mode=2&user=fuckyou", modeTime)
+		command = fmt.Sprintf("FactoryMode.gch?time%d&mode=2&user=notused", modeTime)
 	}
 	return command, nil
 }
