@@ -18,11 +18,11 @@ go build -o zteonu .
 # Pin the MAC to a specific network interface instead
 ./zteonu -i 192.168.1.1 --iface en0
 
-# Use a custom client MAC for the SendInfo payload (overrides everything)
-./zteonu -i 192.168.1.1 -m 00:07:29:55:35:57
+# Use the exact client MAC observed by the ONU/ONT (overrides auto-detection)
+./zteonu -i 192.168.1.1 --mac <mac-seen-by-ont>
 
-# Use the newer time-qualified version61 method
-./zteonu -i 192.168.1.1 --new -m 00:07:29:55:35:57
+# Use the newer time-qualified version61 method with route-based MAC detection
+./zteonu -i 192.168.1.1 --new
 
 # Enable permanent telnet (user: root, pass: Zte521) by restarting telnetd in place, without rebooting
 ./zteonu -i 192.168.1.1 --telnet
@@ -55,19 +55,25 @@ factory-mode requests; it still uses the MAC-derived `SendInfo` payload, so prov
 | `--telnet`         |       | `false`        | permanent telnet (user: `root`, pass: `Zte521`) applied by restarting the `telnetd` service in place, without rebooting; only applied after a temp telnet login is verified |
 | `--telnet-restart` |       | `false`        | permanent telnet (user: `root`, pass: `Zte521`) applied by rebooting the device; mutually exclusive with `--telnet`                                                         |
 | `--tp`             |       | `23`           | ONU telnet port                                                                                                                                                             |
-| `--new`            |       | `false`        | use the newer time-qualified `version61` factory method; it still requires a MAC accepted by the ONU                                                                         |
+| `--new`            |       | `false`        | use the newer time-qualified `version61` factory method; the payload must contain the client MAC observed by the ONU/ONT                                                     |
 | `--iface`          |       | `""`           | network interface whose MAC to use (default: auto-detected from the route to the ONU)                                                                                       |
-| `--mac`            | `-m`  | `""`           | custom client MAC for the `SendInfo` payload (e.g. `00:07:29:55:35:57`); overrides `--iface` and auto-detection                                                             |
+| `--mac`            | `-m`  | `""`           | exact client MAC observed by the ONU/ONT for the `SendInfo` payload; overrides `--iface` and auto-detection                                                                |
 
 ## Notes on the client MAC
 
-The `SendInfo` payload encodes the MAC address of a local network interface (see `app/factory`). The device only
-authorizes MAC addresses it accepts, so:
+The `SendInfo` payload is not tied to a hardcoded MAC. The firmware reads the remote client's MAC at runtime and
+compares it with the MAC encoded in the payload. Any six-byte MAC can be encoded, but it must match the client MAC
+actually observed by the ONU/ONT:
 
-- Without `--iface` or `--mac` the interface that routes to the ONU is auto-detected and its MAC is used.
-- The MAC must be one the device accepts. Historically the device accepted `00:07:29:55:35:57`; supply it via `--mac`
-  or spoof the interface MAC (or use a device that accepts the current MAC) so the payload matches what the device
-  expects.
+- With a direct Ethernet connection, the default route-based detection normally selects the correct interface and MAC.
+- Use `--iface` to select the interface explicitly, or `--mac` when you know the exact MAC seen by the ONU/ONT.
+- Bridges, repeaters, virtual machines, Wi-Fi links and routed setups can cause the ONU/ONT to see a different MAC from
+  the one on the selected local interface.
+- `--mac` changes only the encoded `SendInfo` payload; it does not change the interface's real source MAC. If they do not
+  match, configure or spoof the interface MAC as well.
+
+The previously documented `00:07:29:55:35:57` value was only a captured reference used to validate the algorithm. It
+is not hardcoded by the payload generator and is not required by this firmware.
 
 The payload transformation is derived from reverse-engineering the device's verification VM: the 46-byte payload is 12
 little-endian `uint16` values (`info=12`), each packed as 2 data bytes + 2 zero bytes (the last value has no trailing
