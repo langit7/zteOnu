@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -41,6 +42,9 @@ type Telnet struct {
 	pass string
 	Conn net.Conn
 }
+
+// Close closes the underlying device connection.
+func (t *Telnet) Close() error { return t.Conn.Close() }
 
 // shellPrompts are matched against device output to detect that a command has
 // finished and the shell is ready for the next one.
@@ -83,6 +87,11 @@ func (t *Telnet) Login() error {
 // flash write has finished.
 func (t *Telnet) Solidify() error {
 	return t.modifyDB()
+}
+
+// RunOutput sends a shell command and returns its cleaned output.
+func (t *Telnet) RunOutput(cmd string, timeout time.Duration) (string, error) {
+	return t.runOutput(cmd, timeout)
 }
 
 func (t *Telnet) loginTelnet() error {
@@ -316,6 +325,21 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return s[:n] + "..."
+}
+
+// ParseTempCredentials extracts temporary factory credentials from the
+// FactoryModeAuth.gch response URL.
+func ParseTempCredentials(response string) (string, string, error) {
+	u, err := url.Parse(response)
+	if err != nil {
+		return "", "", fmt.Errorf("invalid factory mode response: %w", err)
+	}
+	q := u.Query()
+	user, pass := q.Get("user"), q.Get("pass")
+	if user == "" || pass == "" {
+		return "", "", fmt.Errorf("factory mode response carries no credentials: %q", response)
+	}
+	return user, pass, nil
 }
 
 // Telnet in-band control bytes (RFC 854).

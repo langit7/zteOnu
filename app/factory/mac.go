@@ -4,7 +4,23 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 )
+
+// ParseMAC accepts colon-, hyphen-, or dot-delimited six-byte MAC notation.
+func ParseMAC(value string) ([6]byte, error) {
+	var out [6]byte
+	compact := strings.NewReplacer(":", "", "-", "", ".", "").Replace(value)
+	hw, err := net.ParseMAC(compact)
+	if err != nil || len(hw) != 6 {
+		return out, fmt.Errorf("invalid MAC address: %s", value)
+	}
+	copy(out[:], hw)
+	return out, nil
+}
+
+// FormatMAC returns the canonical lower-case colon-delimited representation.
+func FormatMAC(mac [6]byte) string { return net.HardwareAddr(mac[:]).String() }
 
 // LocalMAC returns the hardware MAC address of the given local interface. It
 // is an error when the interface is empty, does not exist, or has no 6-byte
@@ -21,21 +37,16 @@ func LocalMAC(iface string) ([6]byte, error) {
 // picks, auto-detected by dialMAC.
 func (f *Factory) ClientMAC() ([6]byte, error) {
 	if f.mac != "" {
-		hw, err := net.ParseMAC(f.mac)
+		m, err := ParseMAC(f.mac)
 		if err != nil {
-			return [6]byte{}, fmt.Errorf("invalid MAC %q: %w", f.mac, err)
+			return [6]byte{}, err
 		}
-		if len(hw) != 6 {
-			return [6]byte{}, fmt.Errorf("MAC %q must be 6 bytes, got %d", f.mac, len(hw))
-		}
-		var m [6]byte
-		copy(m[:], hw)
 		return m, nil
 	}
 	if f.iface != "" {
 		return LocalMAC(f.iface)
 	}
-	m, err := dialMAC(f.ip)
+	m, err := dialMAC(f.ip, f.port)
 	if err != nil {
 		return [6]byte{}, fmt.Errorf("neither --iface nor --mac given and auto-detection failed: %w", err)
 	}
@@ -60,8 +71,13 @@ func hardwareMAC(name string) ([6]byte, error) {
 // dialing a UDP socket (route lookup without sending any packet), reading the
 // chosen source address and mapping it back to the owning interface's
 // hardware MAC.
-func dialMAC(dstIP string) ([6]byte, error) {
-	conn, err := net.Dial("udp", net.JoinHostPort(dstIP, "53"))
+
+func dialMAC(dstIP string, ports ...int) ([6]byte, error) {
+	dstPort := 53
+	if len(ports) > 0 && ports[0] > 0 {
+		dstPort = ports[0]
+	}
+	conn, err := net.Dial("udp", net.JoinHostPort(dstIP, fmt.Sprint(dstPort)))
 	if err != nil {
 		return [6]byte{}, fmt.Errorf("no route to %s: %w", dstIP, err)
 	}

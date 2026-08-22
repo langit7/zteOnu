@@ -29,6 +29,16 @@ go build -o zteonu .
 
 # Same, but apply the settings by rebooting the device instead
 ./zteonu -i 192.168.1.1 --telnet-restart
+
+# Close temporary factory Telnet
+./zteonu -i 192.168.1.1 telnet close
+
+# Enable or disable the serial interface
+./zteonu -i 192.168.1.1 serial open
+./zteonu -i 192.168.1.1 serial close
+
+# Decrypt /etc/hardcodefile containers
+./zteonu hardcode /path/to/hardcode /path/to/hardcodefile/*
 ```
 
 When neither `--iface` nor `--mac` is given, the client MAC is auto-detected: the tool dials a UDP socket to the ONU
@@ -48,10 +58,10 @@ factory-mode requests; it still uses the MAC-derived `SendInfo` payload, so prov
 
 | Flag               | Short | Default        | Description                                                                                                                                                                 |
 |--------------------|-------|----------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `--user`           | `-u`  | `telecomadmin` | factory mode auth username                                                                                                                                                  |
-| `--pass`           | `-p`  | `nE7jA%5m`     | factory mode auth password                                                                                                                                                  |
+| `--user`           | `-u`  | built-in list  | factory mode auth usernames (comma-separated)                                                                                                                               |
+| `--pass`           | `-p`  | built-in list  | factory mode auth passwords (comma-separated)                                                                                                                               |
 | `--ip`             | `-i`  | `192.168.1.1`  | ONU ip address                                                                                                                                                              |
-| `--port`           |       | `8080`         | ONU http port                                                                                                                                                               |
+| `--port`           |       | `80`            | ONU http port                                                                                                                                                               |
 | `--telnet`         |       | `false`        | permanent telnet (user: `root`, pass: `Zte521`) applied by restarting the `telnetd` service in place, without rebooting; only applied after a temp telnet login is verified |
 | `--telnet-restart` |       | `false`        | permanent telnet (user: `root`, pass: `Zte521`) applied by rebooting the device; mutually exclusive with `--telnet`                                                         |
 | `--tp`             |       | `23`           | ONU telnet port                                                                                                                                                             |

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/aes"
 	"encoding/base64"
+	"fmt"
 )
 
 func ECBEncrypt(origData, key []byte) ([]byte, error) {
@@ -27,9 +28,8 @@ func ECBDecrypt(encrypted, key []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	// padding bytes
-	if len(encrypted)%16 != 0 {
-		encrypted = padding(encrypted, block.BlockSize())
+	if len(encrypted)%block.BlockSize() != 0 {
+		return nil, fmt.Errorf("AES-ECB ciphertext length %d is not block aligned", len(encrypted))
 	}
 
 	origData := make([]byte, len(encrypted))
@@ -42,7 +42,10 @@ func ECBDecrypt(encrypted, key []byte) ([]byte, error) {
 }
 
 func padding(origData []byte, blockSize int) []byte {
-	padding := blockSize - len(origData)%blockSize
+	padding := (-len(origData)) % blockSize
+	if padding < 0 {
+		padding += blockSize
+	}
 	padText := bytes.Repeat([]byte{0}, padding)
 	return append(origData, padText...)
 }
